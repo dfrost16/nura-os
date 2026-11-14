@@ -68,7 +68,6 @@ jobs:
       - name: Configure pmbootstrap
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
-          pmbootstrap config ccache true
 
       - name: Compile kernel with envkernel
         run: |
