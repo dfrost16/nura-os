@@ -20,12 +20,25 @@ jobs:
         run: |
           find . -type f -name "*.cfg" -exec sed -i "s|HOME|$(echo $HOME)|;s|NPROC|$(nproc)|" {} +
 
-      - name: Install pmbootstrap from git
+      - name: Setup ccache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/ccache
+            ~/.local/var/pmbootstrap/cache_ccache
+          key: ccache-alioth-${{ github.ref }}-${{ github.run_id }}
+          restore-keys: |
+            ccache-alioth-${{ github.ref }}-
+            ccache-alioth-
+
+      - name: Install pmbootstrap & ccache
         run: |
+          sudo apt-get update && sudo apt-get install -y ccache
           git clone --depth=1 https://gitlab.postmarketos.org/postmarketOS/pmbootstrap.git
           mkdir -p ~/.local/bin
           ln -s "$PWD/pmbootstrap/pmbootstrap.py" ~/.local/bin/pmbootstrap
           pmbootstrap --version
+          ccache --version
 
       - name: Set up pmaports
         run: |
@@ -55,6 +68,7 @@ jobs:
       - name: Configure pmbootstrap
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
+          pmbootstrap config ccache true
 
       - name: Compile kernel with envkernel
         run: |
@@ -88,6 +102,7 @@ jobs:
           echo "===== KERNEL CONFIG VERIFICATION DONE ====="
           make -j$(nproc)
           pmbootstrap build --envkernel linux-postmarketos-qcom-sm8250-alioth
+          ccache -s
 
       - name: Build rootfs (Zero GUI)
         run: |
@@ -131,6 +146,7 @@ jobs:
             * **Calibrated Touch Bounds:** DTB scaled to full 1080x2400 panel resolution.
             * **Zero GUI (Headless / Minimal):** Pure terminal environment ready for custom desktop or home server repurposing.
             * **Fast Minimal Kernel:** DWARF debug bloat, TV tuners, foreign display bridges, and unused drivers stripped out.
+            * **Accelerated Builds:** ccache integration enabled.
             * **Default Credentials:** User `user`, Password `1`.
             
             ### Flash Instructions:
