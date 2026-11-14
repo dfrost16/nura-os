@@ -1,0 +1,30 @@
+--- a/drivers/input/touchscreen/ft8756.c
++++ b/drivers/input/touchscreen/ft8756.c
+@@ -28,7 +28,7 @@
+ #define FT8756_MAX_RETRIES	3
+ 
+ #define DATA_CRC_EN 0x20
+-#define WRITE_CMD   0x00
+-#define READ_CMD    (0x80 | DATA_CRC_EN)
++#define WRITE_CMD   0x00
++#define READ_CMD    0x80
+ 
+ #define CS_HIGH_DELAY 150
+@@ -1070,7 +1070,7 @@ static int ft8756_read_chip_id(struct ft8756_data *ts)
+ 	ret = regmap_raw_read(ts->regmap, 0x9F, &buf[1], 1);
+ 	chip_id = (buf[0] << 8) | buf[1];
+-	if (chip_id != 0x5652 || ret) {
++	if ((chip_id != 0x5652 && chip_id != 0x5252) || ret) {
+ 		dev_err(ts->dev, "Chip ID mismatch: expected 0x%x, got 0x%x", 0x5652, chip_id);
+ 		goto fallback;
+ 	}
+--- a/arch/arm64/boot/dts/qcom/sm8250-xiaomi-alioth.dts
++++ b/arch/arm64/boot/dts/qcom/sm8250-xiaomi-alioth.dts
+@@ -796,6 +796,8 @@
+ 		touchscreen@0 {
+ 			compatible = "focaltech,ft8756-spi";
+ 			reg = <0>;
++			touchscreen-size-x = <1080>;
++			touchscreen-size-y = <2400>;
+ 
+ 			spi-max-frequency = <6000000>;

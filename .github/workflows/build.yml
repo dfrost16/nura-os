@@ -1,12 +1,13 @@
-name: Build images
+name: Build NuraOS LCD Edition (Zero GUI)
 on:
   push:
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * 5' # Run every friday at midnight
 
 env:
   KERNEL_BRANCH: 6.12.1
+
+permissions:
+  contents: write
 
 jobs:
   build-image:
@@ -46,7 +47,14 @@ jobs:
         run: |
           git clone https://github.com/mainlining/linux.git --single-branch --branch nikroks/alioth --depth 1 ./linux
 
-      - name: Choose any SM8250 device in pmbootstrap to build kernel
+      - name: Apply Aftermarket LCD Touchscreen Patch
+        run: |
+          cd linux
+          echo "Applying 0001-aftermarket-lcd-touchscreen.patch..."
+          git apply ../patches/0001-aftermarket-lcd-touchscreen.patch
+          git diff drivers/input/touchscreen/ft8756.c arch/arm64/boot/dts/qcom/sm8250-xiaomi-alioth.dts
+
+      - name: Configure pmbootstrap
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
 
@@ -83,23 +91,66 @@ jobs:
           make -j$(nproc)
           pmbootstrap build --envkernel linux-postmarketos-qcom-sm8250-alioth
 
-      - name: Create artifact directory
-        run: |
-          mkdir out
-
-      - name: Build xiaomi-alioth
+      - name: Build rootfs (Zero GUI & Passwordless)
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
+          pmbootstrap install --password 1
 
-          pmbootstrap install --password 147147
+          # Configure passwordless root and user
+          ROOTFS_DIR="$(pmbootstrap config work)/chroot_rootfs_xiaomi-alioth"
+          echo "Configuring passwordless root and user in $ROOTFS_DIR..."
+          sudo chroot "$ROOTFS_DIR" passwd -d root
+          sudo chroot "$ROOTFS_DIR" passwd -d user
+          sudo sed -i 's/^#PermitEmptyPasswords.*/PermitEmptyPasswords yes/' "$ROOTFS_DIR/etc/ssh/sshd_config"
+          sudo sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' "$ROOTFS_DIR/etc/ssh/sshd_config"
+          sudo sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' "$ROOTFS_DIR/etc/ssh/sshd_config"
+          echo "user ALL=(ALL) NOPASSWD: ALL" | sudo tee "$ROOTFS_DIR/etc/sudoers.d/user"
 
+          # Re-export images with modified rootfs
           pmbootstrap export
-          cp /tmp/postmarketOS-export/boot.img out/boot-xiaomi-alioth.img
-          cp /tmp/postmarketOS-export/xiaomi-alioth.img out/rootfs-xiaomi-alioth.img
+          mkdir out
+          cp /tmp/postmarketOS-export/boot.img out/boot-xiaomi-alioth-lcd.img
+          cp /tmp/postmarketOS-export/xiaomi-alioth.img out/rootfs-xiaomi-alioth-lcd.img
+
+      - name: Compress images for release
+        run: |
+          cd out
+          xz -8 -T0 -k boot-xiaomi-alioth-lcd.img
+          xz -8 -T0 -k rootfs-xiaomi-alioth-lcd.img
+          ls -lh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: xiaomi-alioth
-          path: out/*-alioth.img*
+          name: nuraos-alioth-lcd-zero-gui
+          path: out/*-alioth-lcd.img*
           retention-days: 90
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        with:
+          files: |
+            out/boot-xiaomi-alioth-lcd.img.xz
+            out/rootfs-xiaomi-alioth-lcd.img.xz
+          tag_name: "v1.0.0-lcd-$(date +'%Y%m%d')"
+          name: "NuraOS Alioth LCD Edition (Zero GUI) - $(date +'%Y-%m-%d')"
+          body: |
+            ## NuraOS for POCO F3 / Redmi K40 / Mi 11X (Aftermarket LCD Edition)
+            
+            ### Highlights:
+            * **Fixed Touchscreen:** Integrated patch for replacement LCD FT8756 digitizer (chip ID 0x5252 and disabled CRC packet drop).
+            * **Calibrated Touch Bounds:** DTB scaled to full 1080x2400 panel resolution.
+            * **Zero GUI (Headless / Minimal):** Pure terminal environment ready for custom desktop (Glacier, Plasma, etc.) or home server repurposing.
+            * **Passwordless Access:** Root and user accounts have blank passwords; SSH permits empty password root login.
+            
+            ### Flash Instructions:
+            ```bash
+            unxz boot-xiaomi-alioth-lcd.img.xz
+            unxz rootfs-xiaomi-alioth-lcd.img.xz
+            fastboot flash boot_b boot-xiaomi-alioth-lcd.img
+            fastboot flash userdata rootfs-xiaomi-alioth-lcd.img
+            fastboot reboot
+            ```
+          draft: false
+          prerelease: false
