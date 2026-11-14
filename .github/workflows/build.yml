@@ -89,22 +89,12 @@ jobs:
           make -j$(nproc)
           pmbootstrap build --envkernel linux-postmarketos-qcom-sm8250-alioth
 
-      - name: Build rootfs (Zero GUI & Passwordless)
+      - name: Build rootfs (Zero GUI)
         run: |
           cp xiaomi-alioth.cfg ~/.config/pmbootstrap_v3.cfg
           pmbootstrap install --password 1
 
-          # Configure passwordless root and user
-          ROOTFS_DIR="$(pmbootstrap config work)/chroot_rootfs_xiaomi-alioth"
-          echo "Configuring passwordless root and user in $ROOTFS_DIR..."
-          sudo chroot "$ROOTFS_DIR" passwd -d root
-          sudo chroot "$ROOTFS_DIR" passwd -d user
-          sudo sed -i 's/^#PermitEmptyPasswords.*/PermitEmptyPasswords yes/' "$ROOTFS_DIR/etc/ssh/sshd_config"
-          sudo sed -i 's/^#PermitRootLogin.*/PermitRootLogin yes/' "$ROOTFS_DIR/etc/ssh/sshd_config"
-          sudo sed -i 's/^PermitRootLogin.*/PermitRootLogin yes/' "$ROOTFS_DIR/etc/ssh/sshd_config"
-          echo "user ALL=(ALL) NOPASSWD: ALL" | sudo tee "$ROOTFS_DIR/etc/sudoers.d/user"
-
-          # Re-export images with modified rootfs
+          # Export flashable images
           pmbootstrap export
           mkdir out
           cp /tmp/postmarketOS-export/boot.img out/boot-xiaomi-alioth-lcd.img
@@ -139,8 +129,9 @@ jobs:
             ### Highlights:
             * **Fixed Touchscreen:** Integrated patch for replacement LCD FT8756 digitizer (chip ID 0x5252 and disabled CRC packet drop).
             * **Calibrated Touch Bounds:** DTB scaled to full 1080x2400 panel resolution.
-            * **Zero GUI (Headless / Minimal):** Pure terminal environment ready for custom desktop (Glacier, Plasma, etc.) or home server repurposing.
-            * **Passwordless Access:** Root and user accounts have blank passwords; SSH permits empty password root login.
+            * **Zero GUI (Headless / Minimal):** Pure terminal environment ready for custom desktop or home server repurposing.
+            * **Fast Minimal Kernel:** DWARF debug bloat, TV tuners, foreign display bridges, and unused drivers stripped out.
+            * **Default Credentials:** User `user`, Password `1`.
             
             ### Flash Instructions:
             ```bash
