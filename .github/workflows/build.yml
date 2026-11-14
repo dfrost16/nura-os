@@ -128,6 +128,12 @@ jobs:
           path: out/*-alioth-lcd.img*
           retention-days: 90
 
+      - name: Generate Release Metadata
+        id: meta
+        run: |
+          echo "tag=v1.0.0-lcd-$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+          echo "title=NuraOS Alioth LCD Edition (Zero GUI) - $(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
@@ -135,8 +141,8 @@ jobs:
           files: |
             out/boot-xiaomi-alioth-lcd.img.xz
             out/rootfs-xiaomi-alioth-lcd.img.xz
-          tag_name: "v1.0.0-lcd-$(date +'%Y%m%d')"
-          name: "NuraOS Alioth LCD Edition (Zero GUI) - $(date +'%Y-%m-%d')"
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.title }}
           body: |
             ## NuraOS for POCO F3 / Redmi K40 / Mi 11X (Aftermarket LCD Edition)
             
