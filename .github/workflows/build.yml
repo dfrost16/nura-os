@@ -49,10 +49,8 @@ jobs:
 
       - name: Apply Aftermarket LCD Touchscreen Patch
         run: |
-          cd linux
-          echo "Applying 0001-aftermarket-lcd-touchscreen.patch..."
-          git apply ../patches/0001-aftermarket-lcd-touchscreen.patch
-          git diff drivers/input/touchscreen/ft8756.c arch/arm64/boot/dts/qcom/sm8250-xiaomi-alioth.dts
+          python3 apply_lcd_patch.py
+          git -C linux diff drivers/input/touchscreen/ft8756.c arch/arm64/boot/dts/qcom/sm8250-xiaomi-alioth.dts
 
       - name: Configure pmbootstrap
         run: |
