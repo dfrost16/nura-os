@@ -117,6 +117,7 @@ jobs:
       - name: Compress images for release
         run: |
           cd out
+          zip -q -9 xiaomi-alioth-lcd.zip boot-xiaomi-alioth-lcd.img rootfs-xiaomi-alioth-lcd.img
           xz -8 -T0 -k boot-xiaomi-alioth-lcd.img
           xz -8 -T0 -k rootfs-xiaomi-alioth-lcd.img
           ls -lh
@@ -125,7 +126,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nuraos-alioth-lcd-zero-gui
-          path: out/*-alioth-lcd.img*
+          path: |
+            out/xiaomi-alioth-lcd.zip
+            out/*-alioth-lcd.img*
           retention-days: 90
 
       - name: Generate Release Metadata
@@ -139,6 +142,7 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
         with:
           files: |
+            out/xiaomi-alioth-lcd.zip
             out/boot-xiaomi-alioth-lcd.img.xz
             out/rootfs-xiaomi-alioth-lcd.img.xz
           tag_name: ${{ steps.meta.outputs.tag }}
